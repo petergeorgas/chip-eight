@@ -1,13 +1,10 @@
-use core::panic;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use sdl2::{self, event};
+use sdl2::{self};
 use sdl2::{pixels, EventPump};
-use std::process::exit;
-use std::thread;
 
 const CHIP8_HEIGHT: usize = 32;
 const CHIP8_WIDTH: usize = 64;
@@ -74,7 +71,10 @@ impl DisplayDriver {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => exit(0),
+                } => {
+                    println!("Exiting...");
+                    std::process::exit(1)
+                }
                 _ => {}
             }
         }

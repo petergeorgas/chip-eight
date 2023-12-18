@@ -1,6 +1,6 @@
-use std::{thread, time};
+use std::{ops::BitAnd, thread, time};
 
-use sdl2::{event::Event, keyboard::Keycode};
+use sdl2::sys::__va_list_tag;
 
 use crate::{drivers::DisplayDriver, font::FONT_SET, CHIP8_MEMORY};
 
@@ -135,8 +135,24 @@ impl Processor {
             (0x0D, _, _, _) => {
                 // Display and Draw
                 self.instruction_draw_display(x, y, n);
-                println!("drawing on display!");
             }
+            (0x03, _, _, _) => {
+                // Skip one instruction if VX == NN
+                self.instruction_skip_equal(x, nn)
+            }
+            (0x04, _, _, _) => self.instruction_skip_not_equal(x, nn),
+            (0x05, _, _, 0x00) => self.instruction_skip_register_equal(x, y),
+            (0x09, _, _, 0x00) => self.instruction_skip_register_not_equal(x, y),
+            (0x08, _, _, 0x00) => self.instruction_alu_set(x, y),
+            (0x08, _, _, 0x01) => self.instruction_alu_or(x, y),
+            (0x08, _, _, 0x02) => self.instruction_alu_and(x, y),
+            (0x08, _, _, 0x03) => self.instruction_alu_xor(x, y),
+            (0x08, _, _, 0x04) => self.instruction_alu_add(x, y),
+            (0x08, _, _, 0x05) => self.instruction_alu_subtract(x, y),
+            (0x08, _, _, 0x07) => self.instruction_alu_subtract(y, x),
+            (0x08, _, _, 0x06) => self.instruction_alu_shift(x, y, false),
+            (0x08, _, _, 0x0E) => self.instruction_alu_shift(x, y, true),
+
             _ => println!("Not supported yet!"),
         }
     }
@@ -200,5 +216,105 @@ impl Processor {
 
     fn instruction_set_index(&mut self, value: usize) {
         self.index_register = value;
+    }
+
+    fn instruction_skip_equal(&mut self, register: usize, value: u8) {
+        if self.var_registers[register] == value {
+            self.pc += 2
+        }
+    }
+
+    fn instruction_skip_not_equal(&mut self, register: usize, value: u8) {
+        if self.var_registers[register] != value {
+            self.pc += 2
+        }
+    }
+
+    fn instruction_skip_register_equal(&mut self, vx_register: usize, vy_register: usize) {
+        if self.var_registers[vx_register] == self.var_registers[vy_register] {
+            self.pc += 2;
+        }
+    }
+
+    fn instruction_skip_register_not_equal(&mut self, vx_register: usize, vy_register: usize) {
+        if self.var_registers[vx_register] != self.var_registers[vy_register] {
+            self.pc += 2;
+        }
+    }
+
+    fn instruction_alu_set(&mut self, vx_register: usize, vy_register: usize) {
+        // Set value of vx register to value of vy register
+        self.var_registers[vx_register] = self.var_registers[vy_register]
+    }
+
+    fn instruction_alu_or(&mut self, vx_register: usize, vy_register: usize) {
+        // Binary OR
+        // Or vx register value with vy register value and store in vx register
+        self.var_registers[vx_register] |= self.var_registers[vy_register]
+    }
+
+    fn instruction_alu_and(&mut self, vx_register: usize, vy_register: usize) {
+        // Binary AND
+        // And vx register value with vy register value and store in vx register
+        self.var_registers[vx_register] &= self.var_registers[vy_register]
+    }
+
+    fn instruction_alu_xor(&mut self, vx_register: usize, vy_register: usize) {
+        // Logical XOR
+        // Xor vx register value with vy register value and store in vx register
+        self.var_registers[vx_register] ^= self.var_registers[vy_register]
+    }
+
+    fn instruction_alu_add(&mut self, vx_register: usize, vy_register: usize) {
+        // Add vx register value with vy register value and store in vx register
+        // if overflow occurred, set VF to 1, else set it to 0
+        let (value, overflow) =
+            self.var_registers[vx_register].overflowing_add(self.var_registers[vy_register]);
+
+        self.var_registers[vx_register] = value;
+        if overflow {
+            self.var_registers[0xF] = 1;
+        } else {
+            self.var_registers[0xF] = 0;
+        }
+    }
+
+    fn instruction_alu_subtract(&mut self, vx_register: usize, vy_register: usize) {
+        let (vx_value, vy_value) = (
+            self.var_registers[vx_register],
+            self.var_registers[vy_register],
+        );
+
+        if vx_value > vy_value {
+            self.var_registers[0xF] = 1; // Set VF before subtraction
+        }
+
+        let (value, underflow) = vx_value.overflowing_sub(vy_value);
+        self.var_registers[vx_register] = value;
+        if underflow {
+            self.var_registers[0xF] = 0;
+        }
+    }
+
+    fn instruction_alu_shift(&mut self, vx_register: usize, vy_register: usize, left_shift: bool) {
+        //TODO: OPTIONAL_CONFIGURABLE -- SET VX VALUE TO VY VALUE
+        self.var_registers[vx_register] = self.var_registers[vy_register];
+
+        let mut vx_value = self.var_registers[vx_register];
+
+        let vf_value: u8;
+
+        if left_shift {
+            // left shift
+            vf_value = self.var_registers[vx_register] & 0x80;
+            vx_value <<= 1;
+        } else {
+            // right shift
+            vf_value = self.var_registers[vx_register] & 0x01;
+            vx_value >>= 1;
+        }
+
+        self.var_registers[0xF] = vf_value;
+        self.var_registers[vx_register] = vx_value;
     }
 }
