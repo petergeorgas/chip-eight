@@ -167,8 +167,10 @@ impl Processor {
             (0x08, _, _, 0x07) => self.instruction_alu_subtract(y, x),
             (0x08, _, _, 0x06) => self.instruction_alu_shift(x, y, false),
             (0x08, _, _, 0x0E) => self.instruction_alu_shift(x, y, true),
+            (0x0F, _, 0x02, 0x09) => self.instruction_font_character(x),
+            (0x0F, _, 0x03, 0x03) => self.instruction_bcd_convert(x),
 
-            _ => println!("0x{:04x} Not supported yet!", instruction),
+            _ => println!("0x{:04X} Not supported yet!", instruction),
         }
     }
 
@@ -382,5 +384,20 @@ impl Processor {
 
         self.var_registers[CHIP8_VF_INDEX] = vf_value;
         self.var_registers[vx_register] = vx_value;
+    }
+
+    fn instruction_font_character(&mut self, vx_register: usize) {
+        self.index_register = (self.var_registers[vx_register] as usize) * 5
+    }
+
+    fn instruction_bcd_convert(&mut self, vx_register: usize) {
+        // Binary-coded decimal conversion
+        let mut vx_value = self.var_registers[vx_register];
+
+        for i in (0..3).rev() {
+            let digit = vx_value % 10;
+            self.ram[self.index_register + i] = digit;
+            vx_value /= 10;
+        }
     }
 }
