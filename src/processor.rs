@@ -1,10 +1,9 @@
-use std::{ops::BitAnd, thread, time};
-
-use sdl2::sys::__va_list_tag;
+use std::{thread, time};
 
 use crate::{drivers::DisplayDriver, font::FONT_SET, CHIP8_MEMORY};
 
 const CHIP8_PROGRAM_MEMORY_START: usize = 0x200;
+const CHIP8_VF_INDEX: usize = 0x0F;
 pub struct Processor {
     ram: [u8; CHIP8_MEMORY],
     display: [[u8; 64]; 32],
@@ -180,7 +179,7 @@ impl Processor {
         let row = self.var_registers[vy] as usize;
         let col = self.var_registers[vx] as usize;
 
-        self.var_registers[0xF] = 0;
+        self.var_registers[CHIP8_VF_INDEX] = 0;
 
         for i in 0..height {
             let sprite_row = self.ram[self.index_register + i];
@@ -193,7 +192,7 @@ impl Processor {
 
                 if bit == 1 && pixel_screen == 1 {
                     // We're going to unset a pixel, so set flag in VF
-                    self.var_registers[0xF] = 1;
+                    self.var_registers[CHIP8_VF_INDEX] = 1;
                 }
 
                 self.display[(row + i) % 32][(col + 7 - j) % 64] ^= bit;
@@ -287,9 +286,9 @@ impl Processor {
 
         self.var_registers[vx_register] = value;
         if overflow {
-            self.var_registers[0xF] = 1;
+            self.var_registers[CHIP8_VF_INDEX] = 1;
         } else {
-            self.var_registers[0xF] = 0;
+            self.var_registers[CHIP8_VF_INDEX] = 0;
         }
     }
 
@@ -300,13 +299,13 @@ impl Processor {
         );
 
         if vx_value > vy_value {
-            self.var_registers[0xF] = 1; // Set VF before subtraction
+            self.var_registers[CHIP8_VF_INDEX] = 1; // Set VF before subtraction
         }
 
         let (value, underflow) = vx_value.overflowing_sub(vy_value);
         self.var_registers[vx_register] = value;
         if underflow {
-            self.var_registers[0xF] = 0;
+            self.var_registers[CHIP8_VF_INDEX] = 0;
         }
     }
 
@@ -328,7 +327,7 @@ impl Processor {
             vx_value >>= 1;
         }
 
-        self.var_registers[0xF] = vf_value;
+        self.var_registers[CHIP8_VF_INDEX] = vf_value;
         self.var_registers[vx_register] = vx_value;
     }
 }
