@@ -154,7 +154,7 @@ impl Processor {
             (0x08, _, _, 0x06) => self.instruction_alu_shift(x, y, false),
             (0x08, _, _, 0x0E) => self.instruction_alu_shift(x, y, true),
 
-            _ => println!("Not supported yet!"),
+            _ => println!("0x{:04x} Not supported yet!", instruction),
         }
     }
 
