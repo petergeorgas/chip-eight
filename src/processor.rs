@@ -217,7 +217,10 @@ impl Processor {
     }
 
     fn instruction_add(&mut self, register: usize, value: u8) {
-        self.var_registers[register] += value
+        // ADD WITHOUT CARRY FLAG
+
+        let (value, _) = self.var_registers[register].overflowing_add(value);
+        self.var_registers[register] = value;
     }
 
     fn instruction_set_index(&mut self, value: usize) {
