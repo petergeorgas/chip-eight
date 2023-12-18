@@ -1,6 +1,10 @@
 use std::{thread, time};
 
-use crate::{drivers::DisplayDriver, font::FONT_SET, CHIP8_MEMORY};
+use crate::{
+    drivers::{DisplayDriver, InputDriver},
+    font::FONT_SET,
+    CHIP8_MEMORY,
+};
 
 const CHIP8_PROGRAM_MEMORY_START: usize = 0x200;
 const CHIP8_VF_INDEX: usize = 0x0F;
@@ -15,10 +19,11 @@ pub struct Processor {
     sound_timer: u8,         // Used to produce beep if value >0
     delay_timer: u8,         // Decremented 60 times per second until it reaches 0
     display_driver: DisplayDriver,
+    input_driver: InputDriver,
 }
 
 impl Processor {
-    pub fn new(disp: DisplayDriver) -> Self {
+    pub fn new(disp: DisplayDriver, input: InputDriver) -> Self {
         let mut ram = [0u8; CHIP8_MEMORY];
 
         // Load the font into memory.
@@ -37,6 +42,7 @@ impl Processor {
             pc: CHIP8_PROGRAM_MEMORY_START, // Program counter starts at 0x200 because 0x000-0x1FF stores the font
             sp: 0,
             display_driver: disp,
+            input_driver: input,
         }
     }
 
@@ -60,11 +66,11 @@ impl Processor {
         let sleep_duration = time::Duration::from_millis(5);
         loop {
             // Look for quit event
-            self.display_driver.pump_events();
+            let input_key_code = self.input_driver.last_input();
 
             let instruction = self.get_instruction();
 
-            self.decode_and_execute_instruction(instruction);
+            self.decode_and_execute_instruction(instruction, input_key_code);
             thread::sleep(sleep_duration)
         }
     }
@@ -88,7 +94,7 @@ impl Processor {
         return instruction;
     }
 
-    fn decode_and_execute_instruction(&mut self, instruction: u16) {
+    fn decode_and_execute_instruction(&mut self, instruction: u16, keycode: Option<u8>) {
         let nibbles: (u16, u16, u16, u8) = (
             (instruction & 0xF000) >> 12 as u8,
             (instruction & 0x0F00) >> 8 as u8,
@@ -140,6 +146,12 @@ impl Processor {
             (0x03, _, _, _) => {
                 // Skip one instruction if VX == NN
                 self.instruction_skip_equal(x, nn)
+            }
+            (0x0E, _, 0x09, 0x0E) => {
+                self.instruction_skip_key(x, keycode.unwrap());
+            }
+            (0x0E, _, 0x0A, 0x01) => {
+                self.instruction_skip_not_key(x, keycode.unwrap());
             }
             (0x04, _, _, _) => self.instruction_skip_not_equal(x, nn),
             (0x05, _, _, 0x00) => self.instruction_skip_register_equal(x, y),
@@ -235,6 +247,18 @@ impl Processor {
 
     fn instruction_skip_not_equal(&mut self, register: usize, value: u8) {
         if self.var_registers[register] != value {
+            self.pc += 2
+        }
+    }
+
+    fn instruction_skip_key(&mut self, register: usize, keycode: u8) {
+        if self.var_registers[register] == keycode {
+            self.pc += 2
+        }
+    }
+
+    fn instruction_skip_not_key(&mut self, register: usize, keycode: u8) {
+        if self.var_registers[register] != keycode {
             self.pc += 2
         }
     }

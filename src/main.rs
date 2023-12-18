@@ -2,7 +2,7 @@ mod drivers;
 mod font;
 mod processor;
 
-use drivers::{DisplayDriver, Rom};
+use drivers::{DisplayDriver, InputDriver, Rom};
 use processor::Processor;
 
 const CHIP8_DISPLAY_WIDTH: usize = 64; // 64px wide
@@ -13,8 +13,9 @@ fn main() {
     let rom = Rom::new("roms/test_opcode.ch8");
     let sdl_context = sdl2::init().unwrap();
     let disp = DisplayDriver::new(&sdl_context);
+    let inp = InputDriver::new(&sdl_context);
 
-    let mut processor = Processor::new(disp);
+    let mut processor = Processor::new(disp, inp);
 
     processor.load_program(&rom.data);
 
