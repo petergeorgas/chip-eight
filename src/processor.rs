@@ -137,6 +137,7 @@ impl Processor {
                 // Set index register
                 self.instruction_set_index(nnn);
             }
+            (0x0F, _, 0x01, 0x0E) => self.instruction_add_index(x),
             (0x0B, _, _, _) => self.instruction_jump_with_offset(nnn),
             (0x0C, _, _, _) => self.instruction_random(x, nn),
             (0x0D, _, _, _) => {
@@ -153,6 +154,7 @@ impl Processor {
             (0x0E, _, 0x0A, 0x01) => {
                 self.instruction_skip_not_key(x, keycode.unwrap());
             }
+            (0x0F, _, 0x00, 0x0A) => self.instruction_get_key(x, keycode),
             (0x04, _, _, _) => self.instruction_skip_not_equal(x, nn),
             (0x05, _, _, 0x00) => self.instruction_skip_register_equal(x, y),
             (0x09, _, _, 0x00) => self.instruction_skip_register_not_equal(x, y),
@@ -239,6 +241,19 @@ impl Processor {
         self.index_register = value;
     }
 
+    fn instruction_add_index(&mut self, register: usize) {
+        let mut index_value = self.index_register;
+
+        index_value += self.var_registers[register] as usize;
+
+        if index_value >= 0x100 {
+            // For compatibility -- (kind of) overflow but not really
+            self.var_registers[CHIP8_VF_INDEX] = 1;
+        }
+
+        self.index_register = index_value
+    }
+
     fn instruction_skip_equal(&mut self, register: usize, value: u8) {
         if self.var_registers[register] == value {
             self.pc += 2
@@ -261,6 +276,17 @@ impl Processor {
         if self.var_registers[register] != keycode {
             self.pc += 2
         }
+    }
+
+    fn instruction_get_key(&mut self, register: usize, keycode: Option<u8>) {
+        // Blocks until a key is pressed
+
+        if keycode.is_none() {
+            self.pc -= 2;
+            return;
+        }
+
+        self.var_registers[register] = keycode.unwrap();
     }
 
     fn instruction_skip_register_equal(&mut self, vx_register: usize, vy_register: usize) {
