@@ -14,8 +14,6 @@ impl Rom {
 
         let mut buffer = [0u8; CHIP8_MAX_ROM_SIZE];
 
-        // TODO: Don't really think we would like to continue if we have an error?
-
         // Attempt to fill the buffer
         let bytes_read = match rom_file.read(&mut buffer) {
             Ok(num_bytes) => num_bytes,
