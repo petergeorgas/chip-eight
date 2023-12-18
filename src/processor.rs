@@ -1,5 +1,7 @@
 use std::{thread, time};
 
+use sdl2::{event::Event, keyboard::Keycode};
+
 use crate::{drivers::DisplayDriver, font::FONT_SET, CHIP8_MEMORY};
 
 const CHIP8_PROGRAM_MEMORY_START: usize = 0x200;
@@ -58,6 +60,9 @@ impl Processor {
 
         let sleep_duration = time::Duration::from_millis(5);
         loop {
+            // Look for quit event
+            self.display_driver.pump_events();
+
             let instruction = self.get_instruction();
 
             self.decode_and_execute_instruction(instruction);

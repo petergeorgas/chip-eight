@@ -1,11 +1,12 @@
 use core::panic;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use sdl2::{self, event};
+use sdl2::{pixels, EventPump};
+use std::process::exit;
 use std::thread;
 
 const CHIP8_HEIGHT: usize = 32;
@@ -17,6 +18,7 @@ const SCREEN_HEIGHT: u32 = (CHIP8_HEIGHT as u32) * SCALE_FACTOR;
 
 pub struct DisplayDriver {
     canvas: Canvas<Window>,
+    event_pump: EventPump,
 }
 
 impl DisplayDriver {
@@ -39,22 +41,12 @@ impl DisplayDriver {
         canvas.clear();
         canvas.present();
 
-        let mut event_pump = sdl_context.event_pump().unwrap();
+        let event_pump = sdl_context.event_pump().unwrap();
 
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    panic!("it's over!")
-                }
-                _ => {}
-            }
+        DisplayDriver {
+            canvas: canvas,
+            event_pump,
         }
-
-        DisplayDriver { canvas: canvas }
     }
 
     pub fn draw(&mut self, pixels: &[[u8; CHIP8_WIDTH]; CHIP8_HEIGHT]) {
@@ -73,6 +65,19 @@ impl DisplayDriver {
             }
         }
         self.canvas.present();
+    }
+
+    pub fn pump_events(&mut self) {
+        for event in self.event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => exit(0),
+                _ => {}
+            }
+        }
     }
 }
 
