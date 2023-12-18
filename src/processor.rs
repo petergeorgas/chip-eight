@@ -70,8 +70,8 @@ impl Processor {
         }
     }
 
-    fn push_addr(&mut self, addr: usize) {
-        self.stack[self.sp] = addr;
+    fn push_addr(&mut self, address: usize) {
+        self.stack[self.sp] = address;
         self.sp += 1;
     }
 
@@ -132,6 +132,8 @@ impl Processor {
                 // Set index register
                 self.instruction_set_index(nnn);
             }
+            (0x0B, _, _, _) => self.instruction_jump_with_offset(nnn),
+            (0x0C, _, _, _) => self.instruction_random(x, nn),
             (0x0D, _, _, _) => {
                 // Display and Draw
                 self.instruction_draw_display(x, y, n);
@@ -157,8 +159,13 @@ impl Processor {
         }
     }
 
-    fn instruction_jmp(&mut self, addr: usize) {
-        self.pc = addr;
+    fn instruction_jmp(&mut self, address: usize) {
+        self.pc = address;
+    }
+
+    fn instruction_jump_with_offset(&mut self, address: usize) {
+        // TODO: AMBIGUOUS INSTRUCTION -- ADD CONFIG FOR THIS TO SUPPORT CHIP-48/SUPER-CHIP
+        self.instruction_jmp(address + self.var_registers[0x00] as usize);
     }
 
     fn instruction_clear_screen(&mut self) {
@@ -196,9 +203,9 @@ impl Processor {
         self.display_driver.draw(&self.display);
     }
 
-    fn instruction_call_subroutine(&mut self, addr: usize) {
+    fn instruction_call_subroutine(&mut self, address: usize) {
         self.push_addr(self.pc);
-        self.pc = addr;
+        self.pc = address;
     }
 
     fn instruction_return(&mut self) {
@@ -240,6 +247,13 @@ impl Processor {
         if self.var_registers[vx_register] != self.var_registers[vy_register] {
             self.pc += 2;
         }
+    }
+
+    fn instruction_random(&mut self, vx_register: usize, value: u8) {
+        // Randomly generates a number, ANDs it with value, and stores it in vx register
+        let random_value = rand::random::<u8>();
+
+        self.var_registers[vx_register] = random_value & value
     }
 
     fn instruction_alu_set(&mut self, vx_register: usize, vy_register: usize) {
